@@ -1,0 +1,62 @@
+{
+    "name": "opscale-co/nova-authorization",
+    "description": "This is my package nova-authorization",
+    "keywords": [
+        "laravel",
+        "nova",
+        "package",
+        "tool",
+        "opscale"
+    ],
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://nova.laravel.com"
+        }
+    ],
+    "homepage": "https://github.com/opscale-co/nova-authorization",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Opscale",
+            "email": "development@opscale.co",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-readline": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Opscale\\NovaAuthorization\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Opscale\\NovaAuthorization\\Tests\\": "tests"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Opscale\\NovaAuthorization\\ToolServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require-dev": {
+        "laravel/nova-devtool": "^1.0",
+        "phpunit/phpunit": "^10.5",
+        "tightenco/duster": "^2.7"
+    },
+    "script" : {
+        "post-autoload-dump": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ]
+    }
+}
