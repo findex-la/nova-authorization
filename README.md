@@ -20,13 +20,16 @@ Thanks for helping Opscale continue to scale! 🚀
 
 # Description
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/opscale-co/nova-authorization.svg?style=flat-square)](https://packagist.org/packages/opscale-co/nova-authorization)
+Secure your Nova resources with roles and permissions.
 
-This is my package nova-authorization
+One of the most basic needs for a dashboard is differentiated user access, allowing each profile to manage and view specific information. Confidently manage access to your data with roles and permissions.
 
-Add a screenshot of the tool here.
+![Role creation](https://raw.githubusercontent.com/opscale-co/nova-authorization/refs/heads/main/screenshots/role-creation.png)
+![Role demo](https://raw.githubusercontent.com/opscale-co/nova-authorization/refs/heads/main/screenshots/role-demo.png)
 
 ## Installation
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/opscale-co/nova-authorization.svg?style=flat-square)](https://packagist.org/packages/opscale-co/nova-authorization)
 
 You can install the package in to a Laravel app that uses [Nova](https://nova.laravel.com) via composer:
 
@@ -51,16 +54,48 @@ public function tools()
 }
 
 ```
+This package uses [Spatie Permissions](https://spatie.be/docs/laravel-permission/v6/introduction) internally to manage roles and permissions structure. Follow the installation instructions for this package.
+
+Then modify the following items in Spatie permissions configuration file (permissions.php):
+
+`'permission' => Opscale\NovaAuthorization\Models\Permission::class,`
+`'role' => Opscale\NovaAuthorization\Models\Role::class,`
+`'register_permission_check_method' => false,`
+
+> [!IMPORTANT]  
+> This packages uses its own cache strategy, so we need to disable the default behavior with register_permission_check_method.
+
+Then add the roles relationship to your User resource:
+```php
+
+// in app/Nova/User.php
+// ...
+public function fields()
+{
+    return [
+        // ...
+        new Tag::make(_('Roles'), 'roles'),
+    ];
+}
+
+```
 
 ## Usage
 
-Click on the "nova-authorization" menu item in your Nova app to see the tool provided by this package.
+You will see a "Roles" item in your menu by default. You can create your roles here and assign them to users.
+
+You can also aumate the initial permissions setup using our built-in commands:
+* `php artisan authorization:create-permissions` to automatically read all your resources and create the related permissions
+* `php artisan authorization:create-role` to create a role assigning the selected permissions
+* `php artisan authorization:assign-role` to assign an existing role for an user
+* `php artisan authorization:super-admin` to assign all permission to an user
+* `php artisan authorization:clear-cache` to clear the permissions cache for users (Recommended to execute as part of deployment pipelines)
 
 ## Testing
 
 ``` bash
 
-composer test
+npm run test
 
 ```
 
