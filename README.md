@@ -18,7 +18,7 @@ Thanks for helping Opscale continue to scale! 🚀
 
 
 
-# Description
+## Description
 
 Secure your Nova resources with roles and permissions.
 
@@ -58,9 +58,9 @@ This package uses [Spatie Permissions](https://spatie.be/docs/laravel-permission
 
 Then modify the following items in Spatie permissions configuration file (permissions.php):
 
-`'permission' => Opscale\NovaAuthorization\Models\Permission::class,`
-`'role' => Opscale\NovaAuthorization\Models\Role::class,`
-`'register_permission_check_method' => false,`
+* `'permission' => Opscale\NovaAuthorization\Models\Permission::class,`
+* `'role' => Opscale\NovaAuthorization\Models\Role::class,`
+* `'register_permission_check_method' => false,`
 
 > [!IMPORTANT]  
 > This packages uses its own cache strategy, so we need to disable the default behavior with register_permission_check_method.
@@ -70,11 +70,12 @@ Then add the roles relationship to your User resource:
 
 // in app/Nova/User.php
 // ...
-public function fields()
+public function fields(NovaRequest $request): array
 {
     return [
         // ...
-        new Tag::make(_('Roles'), 'roles'),
+        Tag::make(_('Roles'), 'roles', \Opscale\NovaAuthorization\Nova\Role::class)
+            ->hideFromIndex(),
     ];
 }
 
@@ -84,12 +85,23 @@ public function fields()
 
 You will see a "Roles" item in your menu by default. You can create your roles here and assign them to users.
 
-You can also aumate the initial permissions setup using our built-in commands:
+You can also automate the initial permissions setup using our built-in commands:
 * `php artisan authorization:create-permissions` to automatically read all your resources and create the related permissions
 * `php artisan authorization:create-role` to create a role assigning the selected permissions
 * `php artisan authorization:assign-role` to assign an existing role for an user
 * `php artisan authorization:super-admin` to assign all permission to an user
 * `php artisan authorization:clear-cache` to clear the permissions cache for users (Recommended to execute as part of deployment pipelines)
+
+### Custom policies
+
+This package create a dynamic Policy class for each Model class associated to *your Nova app resources*. If you want to use authorization for other resources or modify the logic for your resources, you can create your own policy and register it in `nova-authorization` config file.
+
+### Cache
+
+> [!IMPORTANT]  
+> This package caches the permissions for each user, the cache last 24 hours and it's flushed any time a role is attached or detached from an user or a permission is attached or detached from a role. 
+
+If you want to avoid caching permission you can disable this behavior in `nova-authorization` config file.
 
 ## Testing
 
