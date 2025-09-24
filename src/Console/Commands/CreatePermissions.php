@@ -2,8 +2,8 @@
 
 namespace Opscale\NovaAuthorization\Console\Commands;
 
-use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
 use Spatie\Permission\Models\Permission;
 
 class CreatePermissions extends Command
@@ -13,7 +13,7 @@ class CreatePermissions extends Command
      *
      * @var string
      */
-    protected $signature = 'authorization:create-permissions';
+    protected $signature = 'nova-authorization:create-permissions';
 
     /**
      * The console command description.
@@ -24,35 +24,31 @@ class CreatePermissions extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return int
      */
-    public function handle()
+    final public function handle(): int
     {
-        try {
-            $resources = appAuthorizableResources();
-            $permissions = [
-                _('Create'),
-                _('Read'),
-                _('Update'),
-                _('Delete'),
-                _('Execute'),
-            ];
+        /** @var array<class-string> $resources */
+        $resources = Config::get('nova-authorization.resources', []);
+        $permissions = [
+            _('Create'),
+            _('Read'),
+            _('Update'),
+            _('Delete'),
+            _('Execute'),
+        ];
 
-            foreach ($resources as $resource) {
-                foreach ($permissions as $permission) {
-                    $name = $permission . ' ' . $resource::singularLabel();
-                    Permission::firstOrCreate(
-                        [
-                            'name' => $name,
-                            'guard_name' => 'web',
-                        ]);
-                }
+        foreach ($resources as $resource) {
+            foreach ($permissions as $permission) {
+                $name = $permission . ' ' . $resource::singularLabel();
+                Permission::query()->firstOrCreate([
+                    'name' => $name,
+                    'guard_name' => 'web',
+                ]);
             }
-
-            $this->info('Permissions have been successfully created.');
-        } catch (Exception $ex) {
-            $this->error('Something went wrong, operation not completed.');
         }
+
+        $this->info('Permissions have been successfully created.');
+
+        return 0;
     }
 }

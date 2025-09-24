@@ -2,69 +2,101 @@
 
 namespace Opscale\NovaAuthorization;
 
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\ServiceProvider;
-use Laravel\Nova\Events\ServingNova;
-use Laravel\Nova\Nova;
+use Opscale\NovaAuthorization\Console\Commands\AssignRole;
+use Opscale\NovaAuthorization\Console\Commands\CreatePermissions;
+use Opscale\NovaAuthorization\Console\Commands\CreateRole;
+use Opscale\NovaAuthorization\Console\Commands\CreateSuperAdmin;
+use Opscale\NovaAuthorization\Nova\Permission;
+use Opscale\NovaAuthorization\Nova\Role;
 use Opscale\NovaAuthorization\Policies\Policy;
+use Opscale\NovaAuthorization\Services\Actions\ClearCache;
+use Opscale\NovaPackageTools\NovaPackage;
+use Opscale\NovaPackageTools\NovaPackageServiceProvider;
+use Spatie\LaravelPackageTools\Commands\InstallCommand;
+use Spatie\LaravelPackageTools\Package;
 
-class ToolServiceProvider extends ServiceProvider
+class ToolServiceProvider extends NovaPackageServiceProvider
 {
-    public function boot()
+    /**
+     * @phpstan-ignore solid.ocp.conditionalOverride
+     */
+    public function configurePackage(Package $package): void
     {
-        if ($this->app->runningInConsole()) {
-            $this->registerCommands();
-        }
-
-        Nova::serving(function (ServingNova $event) {
-            $this->registerResources();
-            $this->registerPolicies();
-        });
+        /** @var NovaPackage $package */
+        $package
+            ->name('nova-authorization')
+            ->hasConfigFile()
+            ->hasCommands([
+                CreatePermissions::class,
+                CreateRole::class,
+                AssignRole::class,
+                CreateSuperAdmin::class,
+                ClearCache::class,
+            ])
+            /** @phpstan-ignore argument.type */
+            ->hasResources([Role::class, Permission::class])
+            ->hasInstallCommand(function (InstallCommand $installCommand): void {
+                $installCommand
+                    ->publishConfigFile()
+                    ->askToStarRepoOnGitHub('opscale-co/nova-authorization');
+            });
     }
 
-    public function register()
+    /**
+     * @phpstan-ignore solid.ocp.conditionalOverride
+     */
+    public function packageBooted(): void
     {
-        $this->registerConfigs();
+        parent::packageBooted();
+        $this->registerPolicies();
     }
 
-    protected function registerPolicies()
+    final protected function registerPolicies(): void
     {
-        $resources = cache()->remember(
-            'opscale.authorization.resources',
-            now()->addHours(24),
-            fn () => appAuthorizableResources()
-        );
-
-        $predefinedPolicies = config('nova-authorization.policies') ?? [];
-        $resources = array_unique(
-            array_merge($resources, array_keys($predefinedPolicies)));
+        /** @var array<class-string> $resources */
+        $resources = Config::get('nova-authorization.resources', []);
+        /** @var array<string, class-string> $predefinedPolicies */
+        $predefinedPolicies = Config::get('nova-authorization.policies', []);
 
         foreach ($resources as $resource) {
             $resourceName = $resource::singularLabel();
+            if (! is_string($resourceName)) {
+                continue;
+            }
+
+            if (! isset($resource::$model)) {
+                continue;
+            }
+
             $policy = $predefinedPolicies[$resourceName] ??
                 $this->generatePolicyClass($resourceName);
             Gate::policy($resource::$model, $policy);
         }
     }
 
-    protected function generatePolicyClass($resource)
+    /**
+     * @return class-string
+     */
+    final protected function generatePolicyClass(string $resource): string
     {
         $class = get_class(new class extends Policy
         {
-            protected $resource = null;
+            protected ?string $resource = null;
 
-            public function getResource()
+            public function getResource(): string
             {
-                return $this->resource;
+                return $this->resource ?? '';
             }
 
-            public function setResource(string $resource)
+            public function setResource(string $resource): void
             {
                 $this->resource = $resource;
             }
         });
 
-        $this->app->singleton($class, function ($app) use ($class, $resource) {
+        $this->app->singleton($class, function ($app) use ($class, $resource): object {
             $instance = new $class;
             $instance->setResource($resource);
 
@@ -72,35 +104,5 @@ class ToolServiceProvider extends ServiceProvider
         });
 
         return $class;
-    }
-
-    protected function registerResources()
-    {
-        Nova::resources([
-            \Opscale\NovaAuthorization\Nova\Role::class,
-            \Opscale\NovaAuthorization\Nova\Permission::class,
-        ]);
-    }
-
-    protected function registerConfigs()
-    {
-        $filename = 'nova-authorization.php';
-        $this->mergeConfigFrom(
-            __DIR__ . "/../config/{$filename}", 'nova-authorization'
-        );
-        $this->publishes([
-            __DIR__ . "/../config/{$filename}" => config_path($filename),
-        ]);
-    }
-
-    protected function registerCommands()
-    {
-        $this->commands([
-            \Opscale\NovaAuthorization\Console\Commands\CreatePermissions::class,
-            \Opscale\NovaAuthorization\Console\Commands\CreateRole::class,
-            \Opscale\NovaAuthorization\Console\Commands\AssignRole::class,
-            \Opscale\NovaAuthorization\Console\Commands\CreateSuperAdmin::class,
-            \Opscale\NovaAuthorization\Console\Commands\ClearCache::class,
-        ]);
     }
 }

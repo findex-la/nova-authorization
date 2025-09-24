@@ -2,17 +2,22 @@
 
 namespace Opscale\NovaAuthorization\Policies;
 
-use Exception;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Support\Facades\Config;
 use Opscale\NovaAuthorization\Contracts\HasPrivileges;
+use Opscale\NovaAuthorization\Services\Actions\CachePermission;
 
 abstract class Policy
 {
     use HandlesAuthorization;
 
-    abstract public function getResource();
+    abstract public function getResource(): string;
 
-    public function before($user, $ability)
+    /**
+     * @param  mixed  $user
+     * @param  string  $ability
+     */
+    final public function before($user, $ability): ?bool
     {
         if ($user != null && $user instanceof HasPrivileges) {
             return $user->isSuperAdmin();
@@ -21,121 +26,157 @@ abstract class Policy
         return null;
     }
 
-    public function create($user)
+    /**
+     * @param  HasPrivileges  $user
+     */
+    final public function create($user): bool
     {
         return $this->can($user, null, _('Create'));
     }
 
-    public function viewAny($user)
+    /**
+     * @param  HasPrivileges  $user
+     */
+    final public function viewAny($user): bool
     {
         return $this->can($user, null, _('Read'));
     }
 
-    public function viewOwn($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function viewOwn($user, $model): bool
     {
         return $this->can($user, $model, _('Read'));
     }
 
-    public function view($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function view($user, $model): bool
     {
         if ($this->checkUser($user, $model)) {
             return $this->viewOwn($user, $model);
-        } else {
-            return $this->can($user, $model, _('Read'));
         }
+
+        return $this->can($user, $model, _('Read'));
     }
 
-    public function updateOwn($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function updateOwn($user, $model): bool
     {
         return $this->can($user, $model, _('Update'));
     }
 
-    public function update($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function update($user, $model): bool
     {
         if ($this->checkUser($user, $model)) {
             return $this->updateOwn($user, $model);
-        } else {
-            return $this->can($user, $model, _('Update'));
         }
+
+        return $this->can($user, $model, _('Update'));
     }
 
-    public function deleteOwn($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function deleteOwn($user, $model): bool
     {
         return $this->can($user, $model, _('Delete'));
     }
 
-    public function delete($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function delete($user, $model): bool
     {
         if ($this->checkUser($user, $model)) {
             return $this->deleteOwn($user, $model);
-        } else {
-            return $this->can($user, $model, _('Delete'));
         }
+
+        return $this->can($user, $model, _('Delete'));
     }
 
-    public function runOwnAction($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function runOwnAction($user, $model): bool
     {
         return $this->can($user, $model, _('Execute'));
     }
 
-    public function runAction($user, $model)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final public function runAction($user, $model): bool
     {
         if ($this->checkUser($user, $model)) {
             return $this->runOwnAction($user, $model);
-        } else {
-            return $this->can($user, $model, _('Execute'));
         }
+
+        return $this->can($user, $model, _('Execute'));
     }
 
-    protected function can($user, $model, $action)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final protected function can($user, $model, string $action): bool
     {
-        if (config('nova-authorization.cache') && config('cache.default') == 'redis') {
-            return $this->checkCachedPermission($user, $model, $action);
-        } else {
-            return $this->checkPermission($user, $model, $action);
-        }
+        $resource = $this->getResource();
+
+        /** @var bool */
+        return CachePermission::run(
+            $user,
+            $action,
+            $resource,
+            fn (): bool => $this->checkPermission($user, $model, $action)
+        );
     }
 
-    protected function checkPermission($user, $model, $action)
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final protected function checkPermission($user, $model, string $action): bool
     {
-        try {
-            $resource = $this->getResource();
-            $permission = "{$action} {$resource}";
+        $resource = $this->getResource();
+        $permission = sprintf('%s %s', $action, $resource);
 
-            return $user->checkPermissionTo($permission);
-        } catch (Exception $e) {
+        return $user->checkPermissionTo($permission);
+    }
+
+    /**
+     * @param  HasPrivileges  $user
+     * @param  mixed  $model
+     */
+    final protected function checkUser($user, $model): bool
+    {
+        /** @var class-string|null $userClass */
+        $userClass = Config::get('auth.providers.users.model');
+        if (! $userClass || ! is_object($model)) {
             return false;
         }
-    }
 
-    protected function checkCachedPermission($user, $model, $action)
-    {
-        try {
-            $base = 'opscale.authorization.user.' . $user->id . '.';
-            $resource = $this->getResource();
-            $permission = "{$action} {$resource}";
-            $cacheKey = $base . str()->slug($permission, '.');
+        $predicate = $model instanceof $userClass ? 'id' : 'user_id';
 
-            return cache()->remember(
-                $cacheKey,
-                now()->addHours(24),
-                function () use ($user, $model, $action) {
-                    return $this->checkPermission($user, $model, $action);
-                });
-        } catch (Exception $e) {
+        if (! property_exists($model, $predicate)) {
             return false;
         }
-    }
 
-    protected function checkUser($user, $model)
-    {
-        try {
-            $userClass = config('auth.providers.users.model');
-            $predicate = $model instanceof $userClass ? 'id' : 'user_id';
-
-            return isset($model->$predicate) && $user->id == $model->$predicate;
-        } catch (Exception $e) {
-            return false;
-        }
+        return isset($model->$predicate) && $user->getKey() == $model->$predicate;
     }
 }

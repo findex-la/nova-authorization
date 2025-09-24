@@ -7,16 +7,19 @@ use Laravel\Nova\Menu\MenuItem;
 use Laravel\Nova\Nova;
 use Laravel\Nova\Tool as NovaTool;
 use Opscale\NovaAuthorization\Nova\Role;
+use Override;
 
 class Tool extends NovaTool
 {
-    public function boot()
+    #[Override]
+    final public function boot(): void
     {
+        parent::boot();
         Nova::script('nova-authorization', __DIR__ . '/../dist/js/tool.js');
         Nova::style('nova-authorization', __DIR__ . '/../dist/css/tool.css');
     }
 
-    public function menu(Request $request)
+    final public function menu(Request $request): MenuItem
     {
         return MenuItem::resource(Role::class);
     }

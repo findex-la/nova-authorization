@@ -1,71 +1,80 @@
 {
-    "name": "opscale-co/nova-authorization",
-    "description": "Secure your Nova resources with roles and permissions",
-    "version": "1.0.0",
-    "keywords": [
-        "laravel",
-        "nova",
-        "package",
-        "tool",
-        "opscale",
-        "authorization",
-        "role",
-        "permission"
-    ],
-    "repositories": [
-        {
-            "type": "composer",
-            "url": "https://nova.laravel.com"
-        }
-    ],
-    "homepage": "https://github.com/opscale-co/nova-authorization",
-    "license": "MIT",
-    "authors": [
-        {
-            "name": "Opscale",
-            "email": "development@opscale.co",
-            "role": "Developer"
-        }
-    ],
-    "require": {
-        "php": ">=8.2",
-        "ext-readline": "*",
-        "mikebronner/laravel-pivot-events": "*",
-        "spatie/laravel-permission": "^6.12"
-    },
-    "autoload": {
-        "psr-4": {
-            "Opscale\\NovaAuthorization\\": "src/"
-        },
-        "files": [
-            "src/helpers.php"
-        ]
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Opscale\\NovaAuthorization\\Tests\\": "tests"
-        }
-    },
-    "extra": {
-        "laravel": {
-            "providers": [
-                "Opscale\\NovaAuthorization\\ToolServiceProvider"
-            ]
-        }
-    },
-    "config": {
-        "sort-packages": true
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "require-dev": {
-        "laravel/nova-devtool": "^1.0",
-        "phpunit/phpunit": "^10.5",
-        "tightenco/duster": "^2.7"
-    },
-    "script" : {
-        "post-autoload-dump": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
-        ]
+  "name": "opscale-co/nova-authorization",
+  "description": "Secure your Nova resources with roles and permissions",
+  "version": "1.0.1",
+  "keywords": [
+    "laravel",
+    "nova",
+    "package",
+    "tool",
+    "opscale",
+    "authorization",
+    "role",
+    "permission"
+  ],
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://nova.laravel.com"
     }
+  ],
+  "homepage": "https://github.com/opscale-co/nova-authorization",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Opscale",
+      "email": "development@opscale.co",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=8.2",
+    "lorisleiva/laravel-actions": "^2.9",
+    "mikebronner/laravel-pivot-events": "*",
+    "opscale-co/nova-package-tools": "^1.0",
+    "spatie/laravel-permission": "^6.12",
+    "theriddleofenigma/laravel-model-validation": "^1.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "Opscale\\NovaAuthorization\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Opscale\\NovaAuthorization\\Tests\\": "tests"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Opscale\\NovaAuthorization\\ToolServiceProvider"
+      ]
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "require-dev": {
+    "driftingly/rector-laravel": "^2.0",
+    "larastan/larastan": "^3.7",
+    "laravel/nova": "^5.3",
+    "laravel/nova-devtool": "^1.0",
+    "opscale-co/strict-rules": "^1.1",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^10.5",
+    "rector/rector": "^2.1",
+    "tightenco/duster": "^2.7"
+  },
+  "script": {
+    "post-autoload-dump": [
+      "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+    ]
+  },
+  "scripts": {
+    "test": "phpunit",
+    "refactor": "rector"
+  }
 }

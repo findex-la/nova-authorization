@@ -2,8 +2,8 @@
 
 namespace Opscale\NovaAuthorization\Console\Commands;
 
-use Exception;
 use Illuminate\Console\Command;
+use Opscale\NovaAuthorization\Services\ResourceDiscoveryService;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -14,7 +14,7 @@ class CreateRole extends Command
      *
      * @var string
      */
-    protected $signature = 'authorization:create-role';
+    protected $signature = 'nova-authorization:create-role';
 
     /**
      * The console command description.
@@ -25,53 +25,51 @@ class CreateRole extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return int
      */
-    public function handle()
+    final public function handle(): int
     {
-        try {
-            $roleName = $this->ask('What is name of the role?');
+        $roleName = $this->ask('What is name of the role?');
 
-            $role = Role::firstOrCreate(
-                [
-                    'name' => $roleName,
-                    'guard_name' => 'web',
-                ]);
+        $role = Role::query()->firstOrCreate([
+            'name' => $roleName,
+            'guard_name' => 'web',
+        ]);
 
-            $resources = appAuthorizableResources();
-            $permissionsMap = [
-                'C' => _('Create'),
-                'R' => _('Read'),
-                'U' => _('Update'),
-                'D' => _('Delete'),
-                'X' => _('Execute'),
-            ];
+        $resources = ResourceDiscoveryService::getAuthorizableResources();
+        $permissionsMap = [
+            'C' => _('Create'),
+            'R' => _('Read'),
+            'U' => _('Update'),
+            'D' => _('Delete'),
+            'X' => _('Execute'),
+        ];
 
-            foreach ($resources as $resource) {
-                $resourceName = $resource::singularLabel();
-                $permissions = $this->ask("What are the permissions for {$resourceName}?");
+        foreach ($resources as $resource) {
+            $resourceName = $resource::singularLabel();
+            $permissions = $this->ask(sprintf('What are the permissions for %s?', $resourceName));
 
-                foreach (str_split($permissions) as $letter) {
-                    if (array_key_exists($letter, $permissionsMap)) {
-                        $permissionName = $permissionsMap[$letter] . ' ' . $resourceName;
-
-                        $permission = Permission::firstOrCreate(
-                            [
-                                'name' => $permissionName,
-                                'guard_name' => 'web',
-                            ]);
-
-                        $permission->assignRole($role);
-                    } else {
-                        $this->warn("Unknown permission code '{$letter}' in pattern CRUDX. Skipping.");
-                    }
-                }
+            if (! is_string($permissions)) {
+                continue;
             }
 
-            $this->info('Permissions have been successfully assigned.');
-        } catch (Exception $ex) {
-            $this->error('Something went wrong, operation not completed.');
+            foreach (str_split($permissions) as $letter) {
+                if (array_key_exists($letter, $permissionsMap)) {
+                    $permissionName = $permissionsMap[$letter] . ' ' . $resourceName;
+
+                    $permission = Permission::query()->firstOrCreate([
+                        'name' => $permissionName,
+                        'guard_name' => 'web',
+                    ]);
+
+                    $permission->assignRole($role);
+                } else {
+                    $this->warn(sprintf("Unknown permission code '%s' in pattern CRUDX. Skipping.", $letter));
+                }
+            }
         }
+
+        $this->info('Permissions have been successfully assigned.');
+
+        return 0;
     }
 }

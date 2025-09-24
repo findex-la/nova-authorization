@@ -2,22 +2,26 @@
 
 namespace Opscale\NovaAuthorization\Models;
 
+use Enigma\ValidatorTrait;
 use Spatie\Permission\Models\Permission as SpatiePermission;
 
 class Permission extends SpatiePermission
 {
+    use ValidatorTrait;
+
+    /**
+     * @var array<string, array<int, string>>
+     */
+    public array $validationRules = [
+        'name' => ['required', 'string', 'max:255', 'unique:permissions'],
+        'guard_name' => ['required'],
+    ];
+
+    /**
+     * @var list<string>
+     */
     protected $fillable = [
         'name',
         'guard_name',
     ];
-
-    protected static function rules(string $property)
-    {
-        return [
-            'name' => ['required', 'string', 'max:255', 'unique:permissions'],
-            'guard_name' => ['required'],
-        ];
-
-        return isset($rules[$property]) ? $rules[$property] : null;
-    }
 }
