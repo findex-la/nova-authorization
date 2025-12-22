@@ -1,0 +1,16 @@
+{
+    "Roles": "Roles",
+    "Role": "Role",
+    "Permissions": "Permissions",
+    "Permission": "Permission",
+    "Name": "Name",
+    "Context": "Context",
+    "Resource": "Resource",
+    "Actions": "Actions",
+    "Create": "Create",
+    "Read": "Read",
+    "Update": "Update",
+    "Delete": "Delete",
+    "Execute": "Execute",
+    "Authorization": "Authorization"
+}

@@ -3,9 +3,10 @@
 namespace Opscale\NovaAuthorization\Policies;
 
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Config;
 use Opscale\NovaAuthorization\Contracts\HasPrivileges;
-use Opscale\NovaAuthorization\Services\Actions\CachePermission;
+use Opscale\NovaAuthorization\Services\Actions\CheckPermission;
 
 abstract class Policy
 {
@@ -19,7 +20,9 @@ abstract class Policy
      */
     final public function before($user, $ability): ?bool
     {
-        if ($user != null && $user instanceof HasPrivileges) {
+        if ($user != null &&
+            $user instanceof HasPrivileges &&
+            $user->isSuperAdmin()) {
             return $user->isSuperAdmin();
         }
 
@@ -27,32 +30,32 @@ abstract class Policy
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      */
     final public function create($user): bool
     {
-        return $this->can($user, null, _('Create'));
+        return $this->can($user, null, __('Create'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      */
     final public function viewAny($user): bool
     {
-        return $this->can($user, null, _('Read'));
+        return $this->can($user, null, __('Read'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function viewOwn($user, $model): bool
     {
-        return $this->can($user, $model, _('Read'));
+        return $this->can($user, $model, __('Read'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function view($user, $model): bool
@@ -61,20 +64,20 @@ abstract class Policy
             return $this->viewOwn($user, $model);
         }
 
-        return $this->can($user, $model, _('Read'));
+        return $this->can($user, $model, __('Read'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function updateOwn($user, $model): bool
     {
-        return $this->can($user, $model, _('Update'));
+        return $this->can($user, $model, __('Update'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function update($user, $model): bool
@@ -83,20 +86,20 @@ abstract class Policy
             return $this->updateOwn($user, $model);
         }
 
-        return $this->can($user, $model, _('Update'));
+        return $this->can($user, $model, __('Update'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function deleteOwn($user, $model): bool
     {
-        return $this->can($user, $model, _('Delete'));
+        return $this->can($user, $model, __('Delete'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function delete($user, $model): bool
@@ -105,20 +108,20 @@ abstract class Policy
             return $this->deleteOwn($user, $model);
         }
 
-        return $this->can($user, $model, _('Delete'));
+        return $this->can($user, $model, __('Delete'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function runOwnAction($user, $model): bool
     {
-        return $this->can($user, $model, _('Execute'));
+        return $this->can($user, $model, __('Execute'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final public function runAction($user, $model): bool
@@ -127,40 +130,45 @@ abstract class Policy
             return $this->runOwnAction($user, $model);
         }
 
-        return $this->can($user, $model, _('Execute'));
+        return $this->can($user, $model, __('Execute'));
     }
 
     /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
+     * @param  mixed  $model
+     */
+    final public function restore($user, $model): bool
+    {
+        return $this->can($user, $model, __('Create'));
+    }
+
+    /**
+     * @param  Authenticatable  $user
+     * @param  mixed  $model
+     */
+    final public function forceDelete($user, $model): bool
+    {
+        return $this->can($user, $model, __('Delete'));
+    }
+
+    /**
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final protected function can($user, $model, string $action): bool
     {
-        $resource = $this->getResource();
+        /** @var array{success: bool, result: bool} $result */
+        $result = CheckPermission::run([
+            'user' => $user,
+            'action' => $action,
+            'resource' => $this->getResource(),
+        ]);
 
-        /** @var bool */
-        return CachePermission::run(
-            $user,
-            $action,
-            $resource,
-            fn (): bool => $this->checkPermission($user, $model, $action)
-        );
+        return $result['result'];
     }
 
     /**
-     * @param  HasPrivileges  $user
-     * @param  mixed  $model
-     */
-    final protected function checkPermission($user, $model, string $action): bool
-    {
-        $resource = $this->getResource();
-        $permission = sprintf('%s %s', $action, $resource);
-
-        return $user->checkPermissionTo($permission);
-    }
-
-    /**
-     * @param  HasPrivileges  $user
+     * @param  Authenticatable  $user
      * @param  mixed  $model
      */
     final protected function checkUser($user, $model): bool

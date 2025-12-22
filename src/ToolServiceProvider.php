@@ -3,19 +3,23 @@
 namespace Opscale\NovaAuthorization;
 
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
-use Opscale\NovaAuthorization\Console\Commands\AssignRole;
-use Opscale\NovaAuthorization\Console\Commands\CreatePermissions;
-use Opscale\NovaAuthorization\Console\Commands\CreateRole;
-use Opscale\NovaAuthorization\Console\Commands\CreateSuperAdmin;
 use Opscale\NovaAuthorization\Nova\Permission;
 use Opscale\NovaAuthorization\Nova\Role;
 use Opscale\NovaAuthorization\Policies\Policy;
+use Opscale\NovaAuthorization\Services\Actions\AssignRole;
 use Opscale\NovaAuthorization\Services\Actions\ClearCache;
+use Opscale\NovaAuthorization\Services\Actions\ConfigurePermissions;
+use Opscale\NovaAuthorization\Services\Actions\CreatePermissions;
+use Opscale\NovaAuthorization\Services\Actions\CreateRole;
+use Opscale\NovaAuthorization\Services\Actions\SyncResources;
 use Opscale\NovaPackageTools\NovaPackage;
 use Opscale\NovaPackageTools\NovaPackageServiceProvider;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
+use Spatie\Permission\Events\RoleAttached;
+use Spatie\Permission\Events\RoleDetached;
 
 class ToolServiceProvider extends NovaPackageServiceProvider
 {
@@ -28,15 +32,20 @@ class ToolServiceProvider extends NovaPackageServiceProvider
         $package
             ->name('nova-authorization')
             ->hasConfigFile()
+            ->hasTranslations()
             ->hasCommands([
+                AssignRole::class,
+                ClearCache::class,
+                ConfigurePermissions::class,
                 CreatePermissions::class,
                 CreateRole::class,
-                AssignRole::class,
-                CreateSuperAdmin::class,
-                ClearCache::class,
+                SyncResources::class,
             ])
             /** @phpstan-ignore argument.type */
-            ->hasResources([Role::class, Permission::class])
+            ->hasResources([
+                Permission::class,
+                Role::class,
+            ])
             ->hasInstallCommand(function (InstallCommand $installCommand): void {
                 $installCommand
                     ->publishConfigFile()
@@ -50,6 +59,7 @@ class ToolServiceProvider extends NovaPackageServiceProvider
     public function packageBooted(): void
     {
         parent::packageBooted();
+        $this->registerEventListeners();
         $this->registerPolicies();
     }
 
@@ -61,17 +71,8 @@ class ToolServiceProvider extends NovaPackageServiceProvider
         $predefinedPolicies = Config::get('nova-authorization.policies', []);
 
         foreach ($resources as $resource) {
-            $resourceName = $resource::singularLabel();
-            if (! is_string($resourceName)) {
-                continue;
-            }
-
-            if (! isset($resource::$model)) {
-                continue;
-            }
-
-            $policy = $predefinedPolicies[$resourceName] ??
-                $this->generatePolicyClass($resourceName);
+            $policy = $predefinedPolicies[$resource] ??
+                $this->generatePolicyClass($resource);
             Gate::policy($resource::$model, $policy);
         }
     }
@@ -96,13 +97,28 @@ class ToolServiceProvider extends NovaPackageServiceProvider
             }
         });
 
-        $this->app->singleton($class, function ($app) use ($class, $resource): object {
+        $binding = $resource::uriKey() . '-policy';
+        $this->app->bindIf($binding, function ($app) use ($class, $resource): object {
             $instance = new $class;
-            $instance->setResource($resource);
+            $instance->setResource($resource::singularLabel());
 
             return $instance;
         });
 
-        return $class;
+        /** @var class-string */
+        return $this->app->getAlias($binding);
+    }
+
+    private function registerEventListeners(): void
+    {
+        Event::listen(
+            RoleAttached::class,
+            ClearCache::class
+        );
+
+        Event::listen(
+            RoleDetached::class,
+            ClearCache::class
+        );
     }
 }

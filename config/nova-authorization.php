@@ -7,6 +7,11 @@ return [
     'cache' => true,
 
     /*
+     * The number of hours to cache permissions.
+     */
+    'cache_ttl' => 24,
+
+    /*
     |--------------------------------------------------------------------------
     | Nova Authorization Resources
     |--------------------------------------------------------------------------

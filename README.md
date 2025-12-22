@@ -24,8 +24,7 @@ Secure your Nova resources with roles and permissions.
 
 One of the most basic needs for a dashboard is differentiated user access, allowing each profile to manage and view specific information. Confidently manage access to your data with roles and permissions.
 
-![Role creation](https://raw.githubusercontent.com/opscale-co/nova-authorization/refs/heads/main/screenshots/role-creation.png)
-![Role demo](https://raw.githubusercontent.com/opscale-co/nova-authorization/refs/heads/main/screenshots/role-demo.png)
+![Authorization demo](https://raw.githubusercontent.com/opscale-co/nova-authorization/refs/heads/main/screenshots/nova-authorization.gif)
 
 ## Installation
 
@@ -61,6 +60,7 @@ Then modify the following items in Spatie permissions configuration file (permis
 * `'permission' => Opscale\NovaAuthorization\Models\Permission::class,`
 * `'role' => Opscale\NovaAuthorization\Models\Role::class,`
 * `'register_permission_check_method' => false,`
+* `'events_enabled' => true,`
 
 > [!IMPORTANT]  
 > This packages uses its own cache strategy, so we need to disable the default behavior with register_permission_check_method.
@@ -86,11 +86,10 @@ public function fields(NovaRequest $request): array
 You will see a "Roles" item in your menu by default. You can create your roles here and assign them to users.
 
 You can also automate the initial permissions setup using our built-in commands:
-* `php artisan authorization:create-permissions` to automatically read all your resources and create the related permissions
-* `php artisan authorization:create-role` to create a role assigning the selected permissions
-* `php artisan authorization:assign-role` to assign an existing role for an user
-* `php artisan authorization:super-admin` to assign all permission to an user
-* `php artisan authorization:clear-cache` to clear the permissions cache for users (Recommended to execute as part of deployment pipelines)
+* `php artisan create-permissions` to automatically read all your resources and create the related permissions
+* `php artisan create-role` to create a role assigning the selected permissions
+* `php artisan assign-role` to assign an existing role for an user
+* `php artisan clear-cache` to clear the permissions cache for users
 
 ### Custom policies
 

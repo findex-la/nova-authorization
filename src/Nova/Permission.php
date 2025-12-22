@@ -9,6 +9,7 @@ use Laravel\Nova\Fields\Tag;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Resource;
+use Opscale\NovaAuthorization\Models\Permission as Model;
 
 /**
  * @extends Resource<\Opscale\NovaAuthorization\Models\Permission>
@@ -18,11 +19,13 @@ class Permission extends Resource
     /**
      * @var class-string<\Opscale\NovaAuthorization\Models\Permission>
      */
-    public static $model = \Opscale\NovaAuthorization\Models\Permission::class;
+    public static $model = Model::class;
 
     public static $title = 'name';
 
     public static $displayInNavigation = false;
+
+    public static $authorizable = true;
 
     /**
      * @var list<string>
@@ -33,17 +36,17 @@ class Permission extends Resource
 
     final public static function label(): string
     {
-        return _('Permissions');
+        return __('Permissions');
     }
 
     final public static function singularLabel(): string
     {
-        return _('Permission');
+        return __('Permission');
     }
 
     final public static function uriKey(): string
     {
-        return _('permissions');
+        return 'permissions';
     }
 
     /**
@@ -59,20 +62,20 @@ class Permission extends Resource
             });
 
         return [
-            Text::make(_('Name'), 'name')
+            Text::make(__('Name'), 'name')
                 ->required()
-                ->creationRules(['required', 'string', 'max:255', 'unique:permissions'])
+                ->creationRules(fn (): array => $this->model()?->validationRules['name'] ?? [])
                 ->sortable(),
 
-            Select::make(_('Context'), 'guard_name')
+            Select::make(__('Context'), 'guard_name')
                 ->options($guards)
                 ->displayUsingLabels()
                 ->required()
-                ->rules(['required'])
+                ->rules(fn (): array => $this->model()?->validationRules['guard_name'] ?? [])
                 ->sortable()
                 ->filterable(),
 
-            Tag::make('Roles', 'roles', Role::class)
+            Tag::make(__('Roles'), 'roles', Role::class)
                 ->hideFromIndex(),
         ];
     }

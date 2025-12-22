@@ -4,11 +4,14 @@ namespace Opscale\NovaAuthorization\Nova;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
+use Laravel\Nova\Fields\Repeater;
 use Laravel\Nova\Fields\Select;
-use Laravel\Nova\Fields\Tag;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Resource;
+use Opscale\NovaAuthorization\Models\Role as Model;
+use Opscale\NovaAuthorization\Nova\Repeatables\Permission;
+use Opscale\NovaAuthorization\Nova\Repeatables\Presets\PermissionsPreset;
 
 /**
  * @extends Resource<\Opscale\NovaAuthorization\Models\Role>
@@ -18,11 +21,13 @@ class Role extends Resource
     /**
      * @var class-string<\Opscale\NovaAuthorization\Models\Role>
      */
-    public static $model = \Opscale\NovaAuthorization\Models\Role::class;
+    public static $model = Model::class;
 
     public static $title = 'name';
 
-    public static $group = 'Authorization';
+    public static $authorizable = true;
+
+    public static $globallySearchable = true;
 
     /**
      * @var list<string>
@@ -31,19 +36,24 @@ class Role extends Resource
         'name',
     ];
 
+    final public static function group(): string
+    {
+        return __('Authorization');
+    }
+
     final public static function label(): string
     {
-        return 'Roles';
+        return __('Roles');
     }
 
     final public static function singularLabel(): string
     {
-        return 'Role';
+        return __('Role');
     }
 
     final public static function uriKey(): string
     {
-        return _('roles');
+        return 'roles';
     }
 
     /**
@@ -59,20 +69,25 @@ class Role extends Resource
             });
 
         return [
-            Text::make(_('Name'), 'name')
+            Text::make(__('Name'), 'name')
                 ->required()
-                ->creationRules(['required', 'string', 'max:255', 'unique:roles'])
+                ->creationRules(fn (): array => $this->model()?->validationRules['name'] ?? [])
                 ->sortable(),
 
-            Select::make(_('Context'), 'guard_name')
+            Select::make(__('Context'), 'guard_name')
                 ->options($guards)
                 ->displayUsingLabels()
                 ->required()
-                ->rules(['required'])
+                ->rules(fn (): array => $this->model()?->validationRules['guard_name'] ?? [])
                 ->sortable()
                 ->filterable(),
 
-            Tag::make(_('Permissions'), 'permissions', Permission::class)
+            Repeater::make(__('Permissions'), 'permissions')
+                /** @phpstan-ignore solid.dip.disallowInstantiation */
+                ->preset(new PermissionsPreset)
+                ->repeatables([
+                    Permission::make(),
+                ])
                 ->hideFromIndex(),
         ];
     }

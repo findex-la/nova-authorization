@@ -5,75 +5,86 @@ namespace Opscale\NovaAuthorization\Services\Actions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Redis;
-use Lorisleiva\Actions\Concerns\AsAction;
-use Lorisleiva\Actions\Concerns\AsCommand;
-use Lorisleiva\Actions\Concerns\AsJob;
+use Opscale\Actions\Action;
+use Spatie\Permission\Events\RoleAttached;
+use Spatie\Permission\Events\RoleDetached;
 
-final class ClearCache
+final class ClearCache extends Action
 {
-    use AsAction;
-    use AsCommand;
-    use AsJob;
-
-    public string $commandSignature = 'nova-authorization:clear-cache';
-
-    public string $commandDescription = 'Delete cached permissions for users.';
-
-    /**
-     * @param  array<int>  $userIds
-     */
-    final public function handle(array $userIds = []): void
+    final public function identifier(): string
     {
-        if (Config::get('cache.default') !== 'redis') {
-            return;
-        }
-
-        $prefixes = $this->generatePrefixes($userIds);
-        $this->clearCacheByPrefixes($prefixes);
+        return 'clear-cache';
     }
 
-    final public function asCommand(): void
+    final public function name(): string
     {
-        $this->handle([]);
-        /** @phpstan-ignore method.notFound */
-        $this->info('Authorization cache cleared successfully.');
+        return 'Clear Cache';
+    }
+
+    final public function description(): string
+    {
+        return 'Delete cached permissions for a user';
     }
 
     /**
-     * @param  array<int>  $userIds
-     * @return array<string>
+     * @return array<int, array{name: string, description: string, type: string, rules: array<string>}>
      */
-    private function generatePrefixes(array $userIds): array
+    final public function parameters(): array
     {
-        $prefixes = [];
+        return [
+            [
+                'name' => 'userId',
+                'description' => 'User ID to clear cache for',
+                'type' => 'string',
+                'rules' => ['required', 'string'],
+            ],
+        ];
+    }
 
-        if ($userIds !== []) {
-            foreach ($userIds as $userId) {
-                $prefixes[] = 'opscale.authorization.user.' . $userId;
-            }
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array{success: bool, message: string}
+     */
+    final public function handle(array $attributes = []): array
+    {
+        $this->fill($attributes);
+        $validated = $this->validateAttributes();
+
+        /** @var string $userId */
+        $userId = $validated['userId'];
+
+        if (Config::get('cache.default') === 'redis') {
+            $this->clearCacheByPrefix($userId);
         } else {
-            $prefixes[] = 'opscale.authorization.user';
+            Cache::flush();
         }
 
-        return $prefixes;
+        return [
+            'success' => true,
+            'message' => 'Authorization cache cleared successfully.',
+        ];
     }
 
-    /**
-     * @param  array<string>  $prefixes
-     */
-    private function clearCacheByPrefixes(array $prefixes): void
+    final public function asListener(RoleAttached|RoleDetached $event): void
+    {
+        $userId = $event->model->getKey();
+        $this->handle(['userId' => (string) $userId]);
+    }
+
+    private function clearCacheByPrefix(string $userId): void
     {
         /** @var string $connectionName */
         $connectionName = Config::get('cache.stores.redis.connection', 'default');
         /** @var \Illuminate\Redis\Connections\Connection $connection */
         $connection = Redis::connection($connectionName);
 
-        foreach ($prefixes as $prefix) {
-            /** @var array<string> $keys */
-            $keys = $connection->keys($prefix . '.*');
-            foreach ($keys as $key) {
-                Cache::forget($key);
-            }
+        $prefix = 'opscale.authorization.user.' . $userId;
+
+        /** @var array<string> $keys */
+        $keys = $connection->keys($prefix . '.*');
+
+        foreach ($keys as $key) {
+            Cache::forget($key);
         }
     }
 }

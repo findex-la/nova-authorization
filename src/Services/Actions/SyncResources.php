@@ -1,102 +1,137 @@
 <?php
 
-namespace Opscale\NovaAuthorization\Console\Commands;
+namespace Opscale\NovaAuthorization\Services\Actions;
 
-use Illuminate\Console\Command;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Laravel\Nova\Events\ServingNova;
 use Laravel\Nova\Nova;
+use Opscale\Actions\Action;
 
-final class SyncResources extends Command
+final class SyncResources extends Action
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'nova-authorization:sync-resources
-                            {--filter=* : Filter resources by namespace or class name}
-                            {--exclude=* : Exclude specific resources}';
+    private Application $application;
 
     /**
-     * The console command description.
-     *
-     * @var string
+     * @var array<int, class-string>
      */
-    protected $description = 'Sync Nova resources to nova-authorization config file';
+    private array $discoveredResources = [];
 
-    final public function __construct(
-        private readonly Application $application
-    ) {
-        parent::__construct();
+    final public function __construct(Application $application)
+    {
+        $this->application = $application;
+    }
+
+    final public function identifier(): string
+    {
+        return 'sync-resources';
+    }
+
+    final public function name(): string
+    {
+        return 'Sync Resources';
+    }
+
+    final public function description(): string
+    {
+        return 'Sync Nova resources to nova-authorization config file';
     }
 
     /**
-     * Execute the console command.
+     * @return array<int, array{name: string, description: string, type: string, rules: array<string>}>
      */
-    final public function handle(): int
+    final public function parameters(): array
     {
-        $this->info('Discovering Nova resources...');
+        return [
+            [
+                'name' => 'filter',
+                'description' => 'Filter resources by namespace or class name (comma-separated)',
+                'type' => 'string',
+                'rules' => ['nullable', 'string'],
+            ],
+            [
+                'name' => 'exclude',
+                'description' => 'Exclude specific resources (comma-separated)',
+                'type' => 'string',
+                'rules' => ['nullable', 'string'],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array{success: bool, message: string, resources?: array<int, array{label: string, uri_key: string, model: string}>}
+     */
+    final public function handle(array $attributes = []): array
+    {
+        $this->fill($attributes);
+        $validated = $this->validateAttributes();
+
+        /** @var string|null $filterString */
+        $filterString = $validated['filter'] ?? null;
+        /** @var string|null $excludeString */
+        $excludeString = $validated['exclude'] ?? null;
+
+        /** @var array<int, string> $filters */
+        $filters = $filterString ? array_filter(explode(',', $filterString)) : [];
+        /** @var array<int, string> $excludes */
+        $excludes = $excludeString ? array_filter(explode(',', $excludeString)) : [];
 
         // Use Nova::serving to ensure all resources are loaded
-        Nova::serving(function (ServingNova $servingNova): void {
-            $this->processResources();
+        Nova::serving(function (ServingNova $servingNova) use ($filters, $excludes): void {
+            $this->processResources($filters, $excludes);
         });
 
         // Trigger ServingNova event to load resources
         $request = Request::create('/');
         ServingNova::dispatch($this->application, $request);
 
-        return Command::SUCCESS;
+        if ($this->discoveredResources === []) {
+            return [
+                'success' => false,
+                'message' => 'No Nova resources found or no resources match the filter criteria.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Successfully synced ' . count($this->discoveredResources) . ' resources to config/nova-authorization.php',
+            'resources' => array_map(function (string $resource): array {
+                return [
+                    'label' => $resource::label(),
+                    'uri_key' => $resource::uriKey(),
+                    'model' => $resource::$model,
+                ];
+            }, $this->discoveredResources),
+        ];
     }
 
     /**
      * Process and sync resources to config
+     *
+     * @param  array<int, string>  $filters
+     * @param  array<int, string>  $excludes
      */
-    private function processResources(): void
+    private function processResources(array $filters, array $excludes): void
     {
         $resources = Nova::$resources;
-        /** @var array<int, string> $filters */
-        $filters = array_filter((array) $this->option('filter'));
-        /** @var array<int, string> $excludes */
-        $excludes = array_filter((array) $this->option('exclude'));
 
         if ($resources === []) {
-            $this->warn('No Nova resources found.');
-
             return;
         }
-
-        $this->info('Found ' . count($resources) . ' Nova resources.');
 
         // Filter resources if needed
         $filteredResources = $this->filterResources($resources, $filters, $excludes);
 
         if ($filteredResources === []) {
-            $this->warn('No resources match the filter criteria.');
-
             return;
         }
 
         // Update config file
         $this->updateConfigFile($filteredResources);
 
-        $this->info('Successfully synced ' . count($filteredResources) . ' resources to config/nova-authorization.php');
-
-        // Display the resources
-        $this->table(
-            ['Resource', 'URI Key', 'Model'],
-            array_map(function (string $resource): array {
-                return [
-                    $resource::label(),
-                    $resource::uriKey(),
-                    $resource::$model,
-                ];
-            }, $filteredResources)
-        );
+        $this->discoveredResources = $filteredResources;
     }
 
     /**
@@ -150,9 +185,6 @@ final class SyncResources extends Command
         $configPath = config_path('nova-authorization.php');
 
         if (! File::exists($configPath)) {
-            $this->error('Config file not found at: ' . $configPath);
-            $this->info('Please publish the config file first: php artisan vendor:publish --tag=nova-authorization-config');
-
             return;
         }
 
@@ -169,16 +201,11 @@ final class SyncResources extends Command
         $newContent = preg_replace($pattern, $replacement, $content);
 
         if ($newContent === null) {
-            $this->error('Failed to update the config file. Pattern not found.');
-
             return;
         }
 
         // Write back to file
         File::put($configPath, $newContent);
-
-        // Clear config cache to reflect changes
-        $this->call('config:clear');
     }
 
     /**
