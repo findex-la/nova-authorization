@@ -32,6 +32,13 @@ class Product extends Resource
     public static $title = 'name';
 
     /**
+     * Indicates if the resource should be authorizable.
+     *
+     * @var bool
+     */
+    public static $authorizable = true;
+
+    /**
      * The columns that should be searched.
      *
      * @var array<int, string>

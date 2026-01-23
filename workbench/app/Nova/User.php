@@ -67,7 +67,7 @@ class User extends Resource
                 ->creationRules(fn (): array => $this->model()->validationRules['password'] ?? []),
             //->updateRules(fn (): array => $this->model()->validationRules['password'] ?? []),
 
-            Tag::make(_('Roles'), 'roles', \Opscale\NovaAuthorization\Nova\Role::class)
+            Tag::make(__('Roles'), 'roles', \Opscale\NovaAuthorization\Nova\Role::class)
                 ->hideFromIndex(),
         ];
     }
