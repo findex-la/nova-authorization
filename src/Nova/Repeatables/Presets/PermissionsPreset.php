@@ -3,12 +3,11 @@
 namespace Opscale\NovaAuthorization\Nova\Repeatables\Presets;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use Laravel\Nova\Fields\Repeater\Presets\Preset;
 use Laravel\Nova\Fields\Repeater\RepeatableCollection;
 use Laravel\Nova\Http\Requests\NovaRequest;
-use Opscale\NovaAuthorization\Models\Permission;
-use Opscale\NovaAuthorization\Models\Role;
 
 class PermissionsPreset implements Preset
 {
@@ -41,8 +40,13 @@ class PermissionsPreset implements Preset
         string|int|null $uniqueField
     ): callable {
         return function () use ($request, $requestAttribute, $model, $uniqueField): void {
+            /** @var class-string<\Illuminate\Database\Eloquent\Model&\Spatie\Permission\Contracts\Role> $roleClass */
+            $roleClass = Config::get('permission.models.role');
+            /** @var class-string<\Illuminate\Database\Eloquent\Model&\Spatie\Permission\Contracts\Permission> $permissionClass */
+            $permissionClass = Config::get('permission.models.permission');
+
             // Only process if model is a Role
-            if (! $model instanceof Role) {
+            if (! $model instanceof $roleClass) {
                 return;
             }
 
@@ -61,7 +65,7 @@ class PermissionsPreset implements Preset
             $permissionNames = [];
 
             // Process each repeater item
-            $repeaterItemsInput->each(function (array $item) use ($model, &$permissionNames, $uniqueField): void {
+            $repeaterItemsInput->each(function (array $item) use ($model, $permissionClass, &$permissionNames, $uniqueField): void {
                 // Skip if not the correct type
                 if (($item['type'] ?? '') !== 'permission') {
                     return;
@@ -86,7 +90,7 @@ class PermissionsPreset implements Preset
                     $permissionName = $this->buildPermissionName($action, $resource);
 
                     // Create permission if it doesn't exist
-                    Permission::query()->firstOrCreate([
+                    $permissionClass::query()->firstOrCreate([
                         'name' => $permissionName,
                         'guard_name' => $model->guard_name ?? 'web',
                     ]);
@@ -108,8 +112,11 @@ class PermissionsPreset implements Preset
      */
     final public function get(NovaRequest $request, $model, string $attribute, RepeatableCollection $repeatables): Collection
     {
+        /** @var class-string<\Illuminate\Database\Eloquent\Model&\Spatie\Permission\Contracts\Role> $roleClass */
+        $roleClass = Config::get('permission.models.role');
+
         // Return empty collection if not a Role
-        if (! $model instanceof Role) {
+        if (! $model instanceof $roleClass) {
             /** @phpstan-ignore smells.helpersRestriction.helper */
             return collect();
         }
@@ -118,7 +125,7 @@ class PermissionsPreset implements Preset
         $model->loadMissing('permissions');
 
         // Parse and group permissions
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Permission> $permissions */
+        /** @var \Illuminate\Database\Eloquent\Collection<int|string, \Illuminate\Database\Eloquent\Model&\Spatie\Permission\Contracts\Permission> $permissions */
         $permissions = $model->permissions;
         $groupedPermissions = $this->parseAndGroupPermissions($permissions);
 
@@ -152,12 +159,14 @@ class PermissionsPreset implements Preset
     /**
      * Parse and group permissions by resource
      *
-     * @param  \Illuminate\Database\Eloquent\Collection<int, Permission>  $permissions
+     * @param  \Illuminate\Database\Eloquent\Collection<int|string, \Illuminate\Database\Eloquent\Model&\Spatie\Permission\Contracts\Permission>  $permissions
      * @return Collection<string, Collection<int, string>>
      */
     final protected function parseAndGroupPermissions($permissions): Collection
     {
-        return $permissions->groupBy(function (Permission $permission): string {
+        return $permissions->groupBy(function ($permission) {
+            $permissionName = $permission->name;
+
             // Parse permission name based on format
             $pattern = str_replace(
                 ['{action}', '{resource}'],
@@ -165,18 +174,20 @@ class PermissionsPreset implements Preset
                 $this->format
             );
 
-            preg_match('/^' . $pattern . '$/i', $permission->name, $matches);
+            preg_match('/^'.$pattern.'$/i', $permissionName, $matches);
 
             if (count($matches) >= 3) {
                 return $matches[2]; // resource
             }
 
             // Fallback for permissions that don't match the pattern
-            $parts = explode(' ', $permission->name);
+            $parts = explode(' ', $permissionName);
 
             return count($parts) > 1 ? $parts[1] : 'other';
         })->map(function ($permissions) {
-            return $permissions->map(function (Permission $permission): string {
+            return $permissions->map(function ($permission) {
+                $permissionName = $permission->name;
+
                 // Extract action from permission name
                 $pattern = str_replace(
                     ['{action}', '{resource}'],
@@ -184,14 +195,14 @@ class PermissionsPreset implements Preset
                     $this->format
                 );
 
-                preg_match('/^' . $pattern . '$/i', $permission->name, $matches);
+                preg_match('/^'.$pattern.'$/i', $permissionName, $matches);
 
                 if (count($matches) >= 2) {
                     return $matches[1]; // action
                 }
 
                 // Fallback
-                $parts = explode(' ', $permission->name);
+                $parts = explode(' ', $permissionName);
 
                 return $parts[0];
             });
@@ -203,12 +214,12 @@ class PermissionsPreset implements Preset
      *
      * @return Collection<int, array{name: string, guard_name: string|null}>
      */
-    final protected function getExistingPermissions(Role $role): Collection
+    final protected function getExistingPermissions($role): Collection
     {
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Permission> $permissions */
+        /** @var \Illuminate\Database\Eloquent\Collection */
         $permissions = $role->permissions;
 
-        return $permissions->map(function (Permission $permission): array {
+        return $permissions->map(function ($permission): array {
             return [
                 'name' => $permission->name,
                 'guard_name' => $permission->guard_name,
