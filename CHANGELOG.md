@@ -2,6 +2,11 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.0.2 (2026-01-23)</small>
+
+* Merge pull request #2 from findex-la/main ([85ad482](https://github.com/opscale-co/nova-authorization/commit/85ad482)), closes [#2](https://github.com/opscale-co/nova-authorization/issues/2)
+* fix(nova): update authorization settings and fix translation function in User resource ([8c5814a](https://github.com/opscale-co/nova-authorization/commit/8c5814a))
+
 ## <small>1.0.1 (2025-12-22)</small>
 
 * perf(project): rewrite using Opscale standards ([377b700](https://github.com/opscale-co/nova-authorization/commit/377b700))
