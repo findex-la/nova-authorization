@@ -1,5 +1,11 @@
 laravel: '@testbench'
 
+env:
+  CACHE_STORE: array
+
+migrations:
+  - workbench/database/migrations
+
 providers:
   - Laravel\Nova\NovaCoreServiceProvider
   - Laravel\Nova\NovaServiceProvider
@@ -17,12 +23,12 @@ workbench:
     - asset-publish
     - vendor:publish:
         --provider: Spatie\Permission\PermissionServiceProvider
-    - configure-permissions
     - create-sqlite-db
     - db:wipe
     - migrate:refresh
     - nova-authorization:install:
         --no-interaction: true
+    - configure-permissions
     - sync-resources
     - create-permissions
   assets:

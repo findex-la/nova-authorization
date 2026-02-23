@@ -5,6 +5,7 @@ namespace Opscale\NovaAuthorization;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Laravel\Nova\Nova;
 use Opscale\NovaAuthorization\Nova\Permission;
 use Opscale\NovaAuthorization\Nova\Role;
 use Opscale\NovaAuthorization\Policies\Policy;
@@ -60,7 +61,10 @@ class ToolServiceProvider extends NovaPackageServiceProvider
     {
         parent::packageBooted();
         $this->registerEventListeners();
-        $this->registerPolicies();
+
+        Nova::serving(function (): void {
+            $this->registerPolicies();
+        });
     }
 
     final protected function registerPolicies(): void
