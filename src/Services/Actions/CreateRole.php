@@ -4,8 +4,6 @@ namespace Opscale\NovaAuthorization\Services\Actions;
 
 use Illuminate\Support\Facades\Config;
 use Opscale\Actions\Action;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 final class CreateRole extends Action
 {
@@ -59,10 +57,11 @@ final class CreateRole extends Action
         /** @var array<string> $permissions */
         $permissions = $validated['permissions'];
 
-        $role = Role::query()->firstOrCreate([
+        $role = config('permission.models.role')::query()->firstOrCreate([
             'name' => $roleName,
             'guard_name' => 'web',
         ]);
+        $roleClass = config('permission.models.role');
 
         $this->assignPermissions($role, $permissions);
 
@@ -76,7 +75,7 @@ final class CreateRole extends Action
     /**
      * @param  array<string>  $permissions
      */
-    private function assignPermissions(Role $role, array $permissions): void
+    private function assignPermissions($role, array $permissions): void
     {
         $permissionsMap = [
             'C' => __('Create'),
@@ -109,9 +108,9 @@ final class CreateRole extends Action
 
             foreach (str_split(strtoupper($codes)) as $letter) {
                 if (array_key_exists($letter, $permissionsMap)) {
-                    $permissionName = $permissionsMap[$letter] . ' ' . $resourceName;
+                    $permissionName = $permissionsMap[$letter].' '.$resourceName;
 
-                    $permission = Permission::query()->firstOrCreate([
+                    $permission = config('permission.models.permission')::query()->firstOrCreate([
                         'name' => $permissionName,
                         'guard_name' => 'web',
                     ]);

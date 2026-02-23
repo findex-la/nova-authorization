@@ -4,7 +4,6 @@ namespace Opscale\NovaAuthorization\Services\Actions;
 
 use Illuminate\Support\Facades\Config;
 use Opscale\Actions\Action;
-use Spatie\Permission\Models\Permission;
 
 final class CreatePermissions extends Action
 {
@@ -47,6 +46,9 @@ final class CreatePermissions extends Action
             ];
         }
 
+        /** @var class-string<\Illuminate\Database\Eloquent\Model&\Spatie\Permission\Contracts\Permission> $permissionClass */
+        $permissionClass = Config::get('permission.models.permission');
+
         $permissions = [
             __('Create'),
             __('Read'),
@@ -60,8 +62,8 @@ final class CreatePermissions extends Action
         foreach ($resources as $resource) {
             $resourceName = $resource::singularLabel();
             foreach ($permissions as $permission) {
-                $name = $permission . ' ' . $resourceName;
-                Permission::query()->firstOrCreate([
+                $name = $permission.' '.$resourceName;
+                $permissionClass::query()->firstOrCreate([
                     'name' => $name,
                     'guard_name' => 'web',
                 ]);
