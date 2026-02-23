@@ -2,6 +2,13 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.0.3 (2026-02-23)</small>
+
+* fix(service provider): policies are registered only when Nova is being served ([bb3f47f](https://github.com/opscale-co/nova-authorization/commit/bb3f47f))
+* Merge branch 'main' into main ([2f7850f](https://github.com/opscale-co/nova-authorization/commit/2f7850f))
+* Merge pull request #3 from findex-la/main ([83a602f](https://github.com/opscale-co/nova-authorization/commit/83a602f)), closes [#3](https://github.com/opscale-co/nova-authorization/issues/3)
+* refactor(core): use configured role and permission models instead of hardcoded classes ([817e6ed](https://github.com/opscale-co/nova-authorization/commit/817e6ed))
+
 ## <small>1.0.2 (2026-01-23)</small>
 
 * Merge pull request #2 from findex-la/main ([85ad482](https://github.com/opscale-co/nova-authorization/commit/85ad482)), closes [#2](https://github.com/opscale-co/nova-authorization/issues/2)
