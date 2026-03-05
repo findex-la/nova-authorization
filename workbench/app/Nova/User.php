@@ -6,9 +6,9 @@ use Illuminate\Http\Request;
 use Laravel\Nova\Auth\PasswordValidationRules;
 use Laravel\Nova\Fields\ID;
 use Laravel\Nova\Fields\Password;
-use Laravel\Nova\Fields\Tag;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Http\Requests\NovaRequest;
+use Opscale\NovaAuthorization\Nova\Fields\RoleTag;
 use Override;
 
 /**
@@ -67,7 +67,7 @@ class User extends Resource
                 ->creationRules(fn (): array => $this->model()->validationRules['password'] ?? []),
             //->updateRules(fn (): array => $this->model()->validationRules['password'] ?? []),
 
-            Tag::make(__('Roles'), 'roles', \Opscale\NovaAuthorization\Nova\Role::class)
+            RoleTag::make(__('Roles'))
                 ->hideFromIndex(),
         ];
     }

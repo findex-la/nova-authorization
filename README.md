@@ -70,16 +70,21 @@ Then add the roles relationship to your User resource:
 
 // in app/Nova/User.php
 // ...
+use Opscale\NovaAuthorization\Nova\Fields\RoleTag;
+
 public function fields(NovaRequest $request): array
 {
     return [
         // ...
-        Tag::make(_('Roles'), 'roles', \Opscale\NovaAuthorization\Nova\Role::class)
+        RoleTag::make(__('Roles'))
             ->hideFromIndex(),
     ];
 }
 
 ```
+
+> [!IMPORTANT]
+> Use `RoleTag` instead of Nova's `Tag` field for roles. `RoleTag` uses Spatie's `assignRole()` and `removeRole()` methods internally, ensuring that `RoleAttached` and `RoleDetached` events are fired. Nova's default `Tag` field uses `sync()` directly on the relationship, bypassing the event system and preventing cache invalidation.
 
 ## Usage
 
