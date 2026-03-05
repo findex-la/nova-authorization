@@ -2,6 +2,10 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## <small>1.0.4 (2026-03-05)</small>
+
+* fix(roletag): added RoleTag field to trigger events properly ([ba2378a](https://github.com/opscale-co/nova-authorization/commit/ba2378a))
+
 ## <small>1.0.3 (2026-02-23)</small>
 
 * fix(service provider): policies are registered only when Nova is being served ([bb3f47f](https://github.com/opscale-co/nova-authorization/commit/bb3f47f))
