@@ -2,6 +2,12 @@
 
 All notable changes to opscale-co/nova-api will be documented in this file.
 
+## 1.1.0 (2026-03-09)
+
+* Merge pull request #5 from findex-la/main ([d6787a0](https://github.com/opscale-co/nova-authorization/commit/d6787a0)), closes [#5](https://github.com/opscale-co/nova-authorization/issues/5)
+* feat(migration): add ModifyPermissionMigration action to update permission migration to use ULIDs ([ae29129](https://github.com/opscale-co/nova-authorization/commit/ae29129))
+* refactor(models): add HasUlids trait to Permission and Role classes ([62f6c7e](https://github.com/opscale-co/nova-authorization/commit/62f6c7e))
+
 ## <small>1.0.4 (2026-03-05)</small>
 
 * fix(roletag): added RoleTag field to trigger events properly ([ba2378a](https://github.com/opscale-co/nova-authorization/commit/ba2378a))
